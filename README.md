@@ -3,8 +3,6 @@ DynamiCrafter that works natively with ComfyUI's nodes, optimizations, and more.
 
 ![image](https://github.com/ExponentialML/ComfyUI_Native_DynamiCrafter/assets/59846140/fd1008ed-7660-454a-8253-1e032c9d054f)
 
-https://github.com/ExponentialML/ComfyUI_Native_DynamiCrafter/assets/59846140/8a42cecf-06f6-4764-8f63-74c96be8578d
-
 > [!NOTE]  
 > While this is still considered WIP (or beta), everything should be fully functional and adaptable to various workflows.
 
@@ -61,6 +59,7 @@ If you are downloading the CLIP and VAE models separately, place them under thei
 - [ ] Add various workflows.
 - [ ] Ensure attention optimizations are working properly.
 - [ ] Add autoregressive nodes (this may be a separate repository)
+- [ ] Add examples. (For now, [check here](https://github.com/Doubiiu/DynamiCrafter?tab=readme-ov-file#11-showcases-576x1024)).
 
 # Credits
 
