@@ -32,7 +32,8 @@ class DynamiCrafterProcessor:
                 "scale_latents": ("BOOLEAN", {"default": True})
             },
         }
-
+        
+    CATEGORY = "Native_DynamiCrafter/Processing"
     RETURN_TYPES = ("MODEL", "LATENT", "LATENT", )
     RETURN_NAMES = ("model", "empty_latent", "latent_img", )
 
@@ -292,7 +293,8 @@ class DynamiCrafterLoader:
                 "model_path": (get_models_directory(os.listdir(MODEL_DIR_PATH)), ),
             },
         }
-
+        
+    CATEGORY = "Native_DynamiCrafter/Loaders"
     RETURN_TYPES = ("MODEL", "IMAGE_PROJ_MODEL", )
     RETURN_NAMES = ("model", "image_proj_model", )
     FUNCTION = "load_dynamicrafter"
