@@ -17,8 +17,10 @@ Go to your `custom_nodes` directory in ComfyUI, and install by:
 # Installation
 
 The pruned UNet checkpoints have been uploaded to HuggingFace. Each variant is working and fully functional.
-**Model Links:** https://huggingface.co/ExponentialML/DynamiCrafterUNet
 
+https://huggingface.co/ExponentialML/DynamiCrafterUNet
+
+## Instructions
 You will also need a VAE, The CLIP model used with Stable Diffusion 2.1, and the Open CLIP Vision Model. All of the necessary model downloads are at that link.
 
 If you aready have the base SD models, you do not need to download them (just use the CheckpointSimpleLoader without the model part).
