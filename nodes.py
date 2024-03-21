@@ -28,7 +28,8 @@ class DynamiCrafterProcessor:
                 "images": ("IMAGE", ),
                 "use_interpolate": ("BOOLEAN", {"default": False}),
                 "fps": ("INT", {"default": 15, "min": 1, "max": 30, "step": 1}, ),
-                "frames": ("INT", {"default": 16})
+                "frames": ("INT", {"default": 16}),
+                "scale_latents": ("BOOLEAN", {"default": True})
             },
         }
 
@@ -151,7 +152,7 @@ class DynamiCrafterProcessor:
         frames,
     ):
         model.model_options['transformer_options']['conditioning'] = {
-            "c_concat": model.model.process_latent_in(c_concat),
+            "c_concat": c_concat,
             "image_emb": image_emb,
             'image_emb_uncond': image_emb_uncond,
             "fs": fs,
@@ -189,7 +190,8 @@ class DynamiCrafterProcessor:
         images, 
         use_interpolate,
         fps: int,
-        frames: int
+        frames: int,
+        scale_latents: bool
     ):
         self.model_patcher = model
         encoded_latent = vae.encode(images[:, :, :, :3])
@@ -201,6 +203,10 @@ class DynamiCrafterProcessor:
         image_emb_uncond = image_proj_model(encoded_image_uncond)
 
         c_concat = encoded_latent
+        c_concat = model.model.process_latent_in(c_concat)
+        if scale_latents:
+            c_concat *= 1.32
+            
         fs = torch.tensor([fps], dtype=torch.long, device=model_management.intermediate_device())
         
         model.set_model_unet_function_wrapper(self._forward)
