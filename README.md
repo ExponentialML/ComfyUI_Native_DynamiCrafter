@@ -65,7 +65,7 @@ If you are downloading the CLIP and VAE models separately, place them under thei
 - [x] Add various workflows.
 - [ ] Ensure attention optimizations are working properly.
 - [ ] Add autoregressive nodes (this may be a separate repository)
-- [x] Add examples. (Fore mor, [check here](https://github.com/Doubiiu/DynamiCrafter?tab=readme-ov-file#11-showcases-576x1024)).
+- [x] Add examples. (For more, [check here](https://github.com/Doubiiu/DynamiCrafter?tab=readme-ov-file#11-showcases-576x1024)).
 
 # Credits
 
