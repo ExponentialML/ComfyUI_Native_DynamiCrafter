@@ -1,4 +1,4 @@
-# ComfyUI_Native_DynamiCrafter
+# ComfyUI - Native DynamiCrafter
 DynamiCrafter that works natively with ComfyUI's nodes, optimizations, and more.
 
 ![image](https://github.com/ExponentialML/ComfyUI_Native_DynamiCrafter/assets/59846140/fd1008ed-7660-454a-8253-1e032c9d054f)
