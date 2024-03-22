@@ -294,9 +294,11 @@ class BasicTransformerBlock(nn.Module):
         disable_self_attn=False, 
         attention_cls=None, 
         video_length=None, 
+        inner_dim=None,
         image_cross_attention=False, 
         image_cross_attention_scale=1.0, 
         image_cross_attention_scale_learnable=False, 
+        switch_temporal_ca_to_sa=False,
         text_context_len=77,
         device=None,
         dtype=None,
@@ -304,6 +306,23 @@ class BasicTransformerBlock(nn.Module):
     ):
         super().__init__()
         attn_cls = CrossAttention if attention_cls is None else attention_cls
+
+        self.ff_in = ff_in or inner_dim is not None
+        if self.ff_in:
+            self.norm_in = operations.LayerNorm(dim, dtype=dtype, device=device)
+            self.ff_in = FeedForward(
+                dim, 
+                dim_out=inner_dim, 
+                dropout=dropout, 
+                glu=gated_ff, 
+                dtype=dtype, 
+                device=device, 
+                operations=operations
+            )
+        if inner_dim is None:
+            inner_dim = dim
+
+        self.is_res = inner_dim == dim
         self.disable_self_attn = disable_self_attn
         self.attn1 = attn_cls(query_dim=dim, heads=n_heads, dim_head=d_head, dropout=dropout,
             context_dim=None, device=device, dtype=dtype if self.disable_self_attn else None)
@@ -327,7 +346,11 @@ class BasicTransformerBlock(nn.Module):
         self.norm1 = operations.LayerNorm(dim, device=device, dtype=dtype)
         self.norm2 = operations.LayerNorm(dim, device=device, dtype=dtype)
         self.norm3 = operations.LayerNorm(dim, device=device, dtype=dtype)
+
+        self.n_heads = n_heads
+        self.d_head = d_head
         self.checkpoint = checkpoint
+        self.switch_temporal_ca_to_sa = switch_temporal_ca_to_sa
 
     def forward(self, x, context=None, mask=None, **kwargs):
         ## implementation tricks: because checkpointing doesn't support non-tensor (e.g. None or scalar) arguments
@@ -341,9 +364,117 @@ class BasicTransformerBlock(nn.Module):
 
 
     def _forward(self, x, context=None, mask=None):
-        x = self.attn1(self.norm1(x), context=context if self.disable_self_attn else None, mask=mask) + x
-        x = self.attn2(self.norm2(x), context=context, mask=mask) + x
-        x = self.ff(self.norm3(x)) + x
+        extra_options = {}
+        block = transformer_options.get("block", None)
+        block_index = transformer_options.get("block_index", 0)
+        transformer_patches = {}
+        transformer_patches_replace = {}
+
+        for k in transformer_options:
+            if k == "patches":
+                transformer_patches = transformer_options[k]
+            elif k == "patches_replace":
+                transformer_patches_replace = transformer_options[k]
+            else:
+                extra_options[k] = transformer_options[k]
+
+        extra_options["n_heads"] = self.n_heads
+        extra_options["dim_head"] = self.d_head
+
+        if self.ff_in:
+            x_skip = x
+            x = self.ff_in(self.norm_in(x))
+            if self.is_res:
+                x += x_skip
+
+        n = self.norm1(x)
+        if self.disable_self_attn:
+            context_attn1 = context
+        else:
+            context_attn1 = None
+        value_attn1 = None
+
+        if "attn1_patch" in transformer_patches:
+            patch = transformer_patches["attn1_patch"]
+            if context_attn1 is None:
+                context_attn1 = n
+            value_attn1 = context_attn1
+            for p in patch:
+                n, context_attn1, value_attn1 = p(n, context_attn1, value_attn1, extra_options)
+
+        if block is not None:
+            transformer_block = (block[0], block[1], block_index)
+        else:
+            transformer_block = None
+        attn1_replace_patch = transformer_patches_replace.get("attn1", {})
+        block_attn1 = transformer_block
+        if block_attn1 not in attn1_replace_patch:
+            block_attn1 = block
+
+        if block_attn1 in attn1_replace_patch:
+            if context_attn1 is None:
+                context_attn1 = n
+                value_attn1 = n
+            n = self.attn1.to_q(n)
+            context_attn1 = self.attn1.to_k(context_attn1)
+            value_attn1 = self.attn1.to_v(value_attn1)
+            n = attn1_replace_patch[block_attn1](n, context_attn1, value_attn1, extra_options)
+            n = self.attn1.to_out(n)
+        else:
+            n = self.attn1(n, context=context_attn1, value=value_attn1)
+
+        if "attn1_output_patch" in transformer_patches:
+            patch = transformer_patches["attn1_output_patch"]
+            for p in patch:
+                n = p(n, extra_options)
+
+        x += n
+        if "middle_patch" in transformer_patches:
+            patch = transformer_patches["middle_patch"]
+            for p in patch:
+                x = p(x, extra_options)
+
+        if self.attn2 is not None:
+            n = self.norm2(x)
+            if self.switch_temporal_ca_to_sa:
+                context_attn2 = n
+            else:
+                context_attn2 = context
+            value_attn2 = None
+            if "attn2_patch" in transformer_patches:
+                patch = transformer_patches["attn2_patch"]
+                value_attn2 = context_attn2
+                for p in patch:
+                    n, context_attn2, value_attn2 = p(n, context_attn2, value_attn2, extra_options)
+
+            attn2_replace_patch = transformer_patches_replace.get("attn2", {})
+            block_attn2 = transformer_block
+            if block_attn2 not in attn2_replace_patch:
+                block_attn2 = block
+
+            if block_attn2 in attn2_replace_patch:
+                if value_attn2 is None:
+                    value_attn2 = context_attn2
+                n = self.attn2.to_q(n)
+                context_attn2 = self.attn2.to_k(context_attn2)
+                value_attn2 = self.attn2.to_v(value_attn2)
+                n = attn2_replace_patch[block_attn2](n, context_attn2, value_attn2, extra_options)
+                n = self.attn2.to_out(n)
+            else:
+                n = self.attn2(n, context=context_attn2, value=value_attn2)
+
+        if "attn2_output_patch" in transformer_patches:
+            patch = transformer_patches["attn2_output_patch"]
+            for p in patch:
+                n = p(n, extra_options)
+
+        x += n
+        if self.is_res:
+            x_skip = x
+        x = self.ff(self.norm3(x))
+        if self.is_res:
+            x += x_skip
+
         return x
 
 
@@ -408,7 +539,7 @@ class SpatialTransformer(nn.Module):
             self.proj_out = zero_module(operations.Linear(inner_dim, in_channels, device=device, dtype=dtype))
         self.use_linear = use_linear
 
-    def forward(self, x, context=None, **kwargs):
+    def forward(self, x, context=None, transformer_options={}, **kwargs):
         b, c, h, w = x.shape
         x_in = x
         x = self.norm(x)
@@ -418,6 +549,7 @@ class SpatialTransformer(nn.Module):
         if self.use_linear:
             x = self.proj_in(x)
         for i, block in enumerate(self.transformer_blocks):
+            transformer_options['block_index'] = i
             x = block(x, context=context, **kwargs)
         if self.use_linear:
             x = self.proj_out(x)
