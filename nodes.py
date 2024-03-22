@@ -124,6 +124,7 @@ class DynamiCrafterProcessor:
         
         outs = []
         for i in range(batch_size):
+            model_in_kwargs['transformer_options']['cond_idx'] = i
             x_out = apply_model(
                     x_in[[i]], 
                     t=torch.cat([t[:1]]),
