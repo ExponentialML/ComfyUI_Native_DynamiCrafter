@@ -205,8 +205,13 @@ class DynamiCrafterProcessor:
 
         c_concat = encoded_latent
         c_concat = model.model.process_latent_in(c_concat)
+        
         if scale_latents:
-            c_concat *= 1.32
+            vae_process_input = vae.process_input
+            vae.process_input = lambda image: (image - .5) * 2
+            c_concat = vae.encode(images[:, :, :, :3])
+            vae.process_input = vae_process_input
+            c_concat = model.model.process_latent_in(c_concat)
             
         fs = torch.tensor([fps], dtype=torch.long, device=model_management.intermediate_device())
         
