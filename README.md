@@ -56,15 +56,32 @@ If you are downloading the CLIP and VAE models separately, place them under thei
 - **empty_latent**: An empty latent with the same size and frames as the processed ones.
   
 - **latent_img**: If you're doing Img2Img based workflows, this is the necessary one to use.
-  
+
+# ControlNet Support
+
+You can now use DynamiCrafter by applying ControlNet to the Spatial (image) portion to guide video generations in various ways.
+The ControlNets are based on 2.1, so you must download them at the link below (Thanks @thibaud !) .
+
+**ControlNet 2.1**: https://huggingface.co/thibaud/controlnet-sd21
+
+After you download them, you can use them as you would with any other workflow.
+
+# Tips
+
 > [!TIP]
 > You don't have to use the latent outputs. As long as you use the same frame length (as your batch size) and same height and with as your image inputs, you can use your own latents.
 > This means that you can experiment with inpainting and so on.
 
+> [!TIP]
+> You can choose which frame you use as init by using VAE Encode Inpaint or Set Latent Noise Mask. You set the beginning batch mask to full black, while the rest are at full white. This also means you can do interpolation with regular models.
+> As these workflows are more advanced, examples will arrive at a future date.
+
 # TODO
 - [x] Add various workflows.
-- [ ] Add support for Spatial Transformer options.
-- [ ] Ensure attention optimizations are working properly.
+- [ ] Add advanced workflows.
+- [x] Add support for Spatial Transformer options.
+- [x] Add ControlNet support.
+- [x] Ensure attention optimizations are working properly.
 - [ ] Add autoregressive nodes (this may be a separate repository)
 - [x] Add examples. (For more, [check here](https://github.com/Doubiiu/DynamiCrafter?tab=readme-ov-file#11-showcases-576x1024)).
 
