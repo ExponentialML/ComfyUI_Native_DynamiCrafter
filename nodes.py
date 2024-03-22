@@ -29,7 +29,7 @@ class DynamiCrafterProcessor:
                 "use_interpolate": ("BOOLEAN", {"default": False}),
                 "fps": ("INT", {"default": 15, "min": 1, "max": 30, "step": 1}, ),
                 "frames": ("INT", {"default": 16}),
-                "scale_latents": ("BOOLEAN", {"default": True})
+                "scale_latents": ("BOOLEAN", {"default": False})
             },
         }
         
