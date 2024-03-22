@@ -70,4 +70,4 @@ If you are downloading the CLIP and VAE models separately, place them under thei
 
 # Credits
 
-Thanks to @Doubiiu for for open sourcing [DynamiCrafter](https://github.com/Doubiiu/DynamiCrafter)https://github.com/Doubiiu/DynamiCrafter! Please support their work, and please follow any license terms they may uphold.
+Thanks to @Doubiiu for for open sourcing [DynamiCrafter](https://github.com/Doubiiu/DynamiCrafter)! Please support their work, and please follow any license terms they may uphold.
