@@ -15,6 +15,8 @@ from ...basics import (
 )
 from ...modules.attention import SpatialTransformer, TemporalTransformer
 import comfy.ops
+import logging
+
 ops = comfy.ops.disable_weight_init
 
 class TimestepBlock(nn.Module):
@@ -28,20 +30,20 @@ class TimestepBlock(nn.Module):
         """
 
 #This is needed because accelerate makes a copy of transformer_options which breaks "transformer_index"
-def forward_timestep_embed(ts, x, emb, context=None, transformer_options={}, output_shape=None, time_context=None, num_video_frames=None, image_only_indicator=None):
+def forward_timestep_embed(ts, x, emb, context=None, batch_size=None, transformer_options={}):
     for layer in ts:
         if isinstance(layer, TimestepBlock):
-            x = layer(x, emb)
-        elif isinstance(layer, SpatialVideoTransformer):
-            x = layer(x, context, time_context, num_video_frames, image_only_indicator, transformer_options)
+            x = layer(x, emb, batch_size=batch_size)
+        elif isinstance(layer, SpatialTransformer):
+            x = layer(x, context)
             if "transformer_index" in transformer_options:
                 transformer_options["transformer_index"] += 1
         elif isinstance(layer, TemporalTransformer):
-            x = layer(x, context, transformer_options)
+            x = rearrange(x, '(b f) c h w -> b c f h w', b=batch_size)
+            x = layer(x, context)
             if "transformer_index" in transformer_options:
                 transformer_options["transformer_index"] += 1
-        elif isinstance(layer, Upsample):
-            x = layer(x, output_shape=output_shape)
+            x = rearrange(x, 'b c f h w -> (b f) c h w')
         else:
             x = layer(x)
     return x
@@ -52,19 +54,8 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
     support it as an extra input.
     """
 
-    def forward(self, x, emb, context=None, batch_size=None):
-        for layer in self:
-            if isinstance(layer, TimestepBlock):
-                x = layer(x, emb, batch_size=batch_size)
-            elif isinstance(layer, SpatialTransformer):
-                x = layer(x, context)
-            elif isinstance(layer, TemporalTransformer):
-                x = rearrange(x, '(b f) c h w -> b c f h w', b=batch_size)
-                x = layer(x, context)
-                x = rearrange(x, 'b c f h w -> (b f) c h w')
-            else:
-                x = layer(x)
-        return x
+    def forward(self, *args, **kwargs):
+        return forward_timestep_embed(self, *args, **kwargs)
 
 class Downsample(nn.Module):
     """
@@ -339,6 +330,32 @@ def context_processor(context, t, img_emb=None, temporal_size=16, concat_only=Fa
         context = context.repeat_interleave(repeats=t, dim=0)
 
     return context
+
+def apply_control(h, control, name, cond_idx=None):
+    if control is not None and name in control and len(control[name]) > 0:
+        frames = h.shape[0]
+        ctrl = control[name].pop()
+        if ctrl is not None:    
+            try:
+                if cond_idx is not None and ctrl.shape[0] > frames:
+                    ctrl_frames_list = list(range(ctrl.shape[0]))
+                    ctrl_frames = len(ctrl_frames_list)
+
+                    idxs = (
+                        ctrl_frames_list[ctrl_frames // 2:] if cond_idx == 0 else \
+                            ctrl_frames_list[:ctrl_frames // 2]
+                    )
+                    
+                    ctrl = ctrl[idxs]
+
+                h += ctrl
+            except Exception as e:
+                if h.shape != ctrl.shape:
+                    logging.warning(
+                        "warning control could not be applied {} {}".format(h.shape, ctrl.shape)
+                    )
+                logging.warning(e)
+    return h
 
 class UNetModel(nn.Module):
     """
@@ -677,13 +694,16 @@ class UNetModel(nn.Module):
             features_adapter=None, 
             fs=None, 
             img_emb=None,
+            control=None,
             transformer_options={}, 
+            cond_idx=None,
             **kwargs
         ):
         
         if any([fs is None, img_emb is None, cc_concat is None]):
             raise ValueError("One or more of the required inputs for UNet Forward is None.")
         
+        cond_idx = transformer_options.get("cond_idx", None)
         transformer_options['original_shape'] = list(x.shape)
         transformer_options['transformer_index'] = 0
         transformer_patches = transformer_options.get("patches", {})
@@ -726,21 +746,73 @@ class UNetModel(nn.Module):
         hs = []
 
         for id, module in enumerate(self.input_blocks):
-            h = module(h, emb, context=context, batch_size=b)
+            transformer_options["block"] = ("input", id)
+            #h = module(h, emb, context=context, batch_size=b)
+            h = forward_timestep_embed(
+                module, 
+                h, 
+                emb, 
+                context=context, 
+                batch_size=b, 
+                transformer_options=transformer_options
+            )
+            h = apply_control(h, control, 'input', cond_idx)
+
+            if "input_block_patch" in transformer_patches:
+                patch = transformer_patches["input_block_patch"]
+                for p in patch:
+                    h = p(h, transformer_options)
+
             if id ==0 and self.addition_attention:
-                h = self.init_attn(h, emb, context=context, batch_size=b)
+                h = forward_timestep_embed(
+                self.init_attn, 
+                h, 
+                emb, 
+                context=context, 
+                batch_size=b, 
+                transformer_options=transformer_options
+            )
             ## plug-in adapter features
             if ((id+1)%3 == 0) and features_adapter is not None:
                 h = h + features_adapter[adapter_idx]
                 adapter_idx += 1
             hs.append(h)
+            if "input_block_patch_after_skip" in transformer_patches:
+                patch = transformer_patches["input_block_patch_after_skip"]
+                for p in patch:
+                    h = p(h, transformer_options)
         if features_adapter is not None:
             assert len(features_adapter)==adapter_idx, 'Wrong features_adapter'
+        transformer_options["block"] = ("middle", 0)
+        h = forward_timestep_embed(
+                self.middle_block, 
+                h, 
+                emb, 
+                context=context, 
+                batch_size=b, 
+                transformer_options=transformer_options
+            )
+        h = apply_control(h, control, 'middle', cond_idx)
+        for id, module in enumerate(self.output_blocks):
+            transformer_options["block"] = ("output", id)
+            hsp = hs.pop()
+            hsp = apply_control(hsp, control, 'output', cond_idx)
 
-        h = self.middle_block(h, emb, context=context, batch_size=b)
-        for module in self.output_blocks:
-            h = torch.cat([h, hs.pop()], dim=1)
-            h = module(h, emb, context=context, batch_size=b)
+            if "output_block_patch" in transformer_patches:
+                patch = transformer_patches["output_block_patch"]
+                for p in patch:
+                    h, hsp = p(h, hsp, transformer_options)
+
+            h = torch.cat([h, hsp], dim=1)
+            del hsp
+            h = forward_timestep_embed(
+                module, 
+                h, 
+                emb, 
+                context=context, 
+                batch_size=b, 
+                transformer_options=transformer_options
+            )
         h = h.type(x.dtype)
         h = self.out(h)
         
