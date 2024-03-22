@@ -204,7 +204,6 @@ class DynamiCrafterProcessor:
         image_emb_uncond = image_proj_model(encoded_image_uncond)
 
         c_concat = encoded_latent
-        c_concat = model.model.process_latent_in(c_concat)
         
         if scale_latents:
             vae_process_input = vae.process_input
