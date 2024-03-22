@@ -3,6 +3,12 @@ DynamiCrafter that works natively with ComfyUI's nodes, optimizations, and more.
 
 ![image](https://github.com/ExponentialML/ComfyUI_Native_DynamiCrafter/assets/59846140/fd1008ed-7660-454a-8253-1e032c9d054f)
 
+|   |  |
+| ------------- | ------------- |
+| ![DynamiCrafter_00298](https://github.com/ExponentialML/ComfyUI_Native_DynamiCrafter/assets/59846140/e66a2559-b973-4a63-bc97-1a0701ab7dd3)  | ![DynamiCrafter_00327](https://github.com/ExponentialML/ComfyUI_Native_DynamiCrafter/assets/59846140/81b2b681-ef44-4966-8cb3-fa04692710a8)  |
+
+
+
 > [!NOTE]  
 > While this is still considered WIP (or beta), everything should be fully functional and adaptable to various workflows.
 
