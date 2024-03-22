@@ -62,10 +62,10 @@ If you are downloading the CLIP and VAE models separately, place them under thei
 > This means that you can experiment with inpainting and so on.
 
 # TODO
-- [ ] Add various workflows.
+- [x] Add various workflows.
 - [ ] Ensure attention optimizations are working properly.
 - [ ] Add autoregressive nodes (this may be a separate repository)
-- [ ] Add examples. (For now, [check here](https://github.com/Doubiiu/DynamiCrafter?tab=readme-ov-file#11-showcases-576x1024)).
+- [x] Add examples. (Fore more, [check here](https://github.com/Doubiiu/DynamiCrafter?tab=readme-ov-file#11-showcases-576x1024)).
 
 # Credits
 
