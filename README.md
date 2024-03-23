@@ -18,6 +18,10 @@ Go to your `custom_nodes` directory in ComfyUI, and install by:
 
 `git clone https://github.com/ExponentialML/ComfyUI_Native_DynamiCrafter.git`
 
+> [!IMPORTANT]  
+> This is a rapid release project. If there are any issues installing from main, the last stable branch is [here](https://github.com/ExponentialML/ComfyUI_Native_DynamiCrafter/tree/43ae6bebccb141c6d85b5075f4fed57a5ddea3c1).
+> If everything is working fine, you can ignore this, but will miss out on the latest features.
+
 # Installation
 
 The pruned UNet checkpoints have been uploaded to HuggingFace. Each variant is working and fully functional.
