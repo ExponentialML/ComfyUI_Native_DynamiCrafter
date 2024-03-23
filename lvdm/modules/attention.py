@@ -300,6 +300,7 @@ class BasicTransformerBlock(nn.Module):
         image_cross_attention_scale_learnable=False, 
         switch_temporal_ca_to_sa=False,
         text_context_len=77,
+        ff_in=None,
         device=None,
         dtype=None,
         operations=ops
