@@ -102,7 +102,7 @@ class CrossAttention(nn.Module):
             if image_cross_attention_scale_learnable:
                 self.register_parameter('alpha', nn.Parameter(torch.tensor(0.)) )
 
-    def comfy_efficient_forward(self, x, context=None, mask=None):
+    def comfy_efficient_forward(self, x, context=None, mask=None, *args, **kwargs):
         spatial_self_attn = (context is None)
         k_ip, v_ip, out_ip = None, None, None
 
@@ -364,7 +364,7 @@ class BasicTransformerBlock(nn.Module):
         return checkpoint(self._forward, input_tuple, self.parameters(), self.checkpoint)
 
 
-    def _forward(self, x, context=None, mask=None):
+    def _forward(self, x, context=None, mask=None, transformer_options={}):
         extra_options = {}
         block = transformer_options.get("block", None)
         block_index = transformer_options.get("block_index", 0)
