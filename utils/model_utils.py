@@ -38,6 +38,31 @@ DYNAMICRAFTER_CONFIG = {
     'fs_condition': True
 }
 
+VIDEOCRAFTER_CONFIG = {
+    'in_channels': 4,
+    'out_channels': 4,
+    'model_channels': 320,
+    'attention_resolutions': [4, 2, 1],
+    'num_res_blocks': 2,
+    'channel_mult': [1, 2, 4, 4],
+    'num_head_channels': 64,
+    'transformer_depth': 1,
+    'context_dim': 1024,
+    'use_linear': True,
+    'use_checkpoint': False,
+    'temporal_conv': True,
+    'temporal_attention': True,
+    'temporal_selfatt_only': True,
+    'use_relative_position': False,
+    'use_causal_attention': False,
+    'temporal_length': 16,
+    'addition_attention': True,
+    'image_cross_attention': True,
+    'image_cross_attention_scale_learnable': True,
+    'default_fs': 3,
+    'fs_condition': True
+}
+
 IMAGE_PROJ_CONFIG = {
     "dim": 1024,
     "depth": 4,

@@ -313,18 +313,24 @@ def context_processor(context, t, img_emb=None, temporal_size=16, concat_only=Fa
         
     ## repeat t times for context [(b t) 77 768] & time embedding
     ## check if we use per-frame image conditioning
-
+    used_concat = False
     if img_emb is not None:
+        if context.shape[0] < img_emb.shape[0]:
+            context = torch.cat([context] * img_emb.shape[0])[:img_emb.shape[0]]
+            used_concat = True
         context = torch.cat([context, img_emb.to(context.device, context.dtype)], dim=1)
-        
+    
     if concat_only:
         return context
 
     b, l_context, _ = context.shape
     if l_context == 77 + t * temporal_size:
         context_text, context_img = context[:,:77,:], context[:,77:,:]
-        context_text = context_text.repeat_interleave(repeats=t, dim=0)
-        context_img = rearrange(context_img, 'b (t l) c -> (b t) l c', t=t)
+
+        if not used_concat:
+            context_text = context_text.repeat_interleave(repeats=t, dim=0)
+            context_img = rearrange(context_img, 'b (t l) c -> (b t) l c', t=t)
+            
         context = torch.cat([context_text, context_img], dim=1)
     else:
         context = context.repeat_interleave(repeats=t, dim=0)
@@ -419,6 +425,7 @@ class UNetModel(nn.Module):
                  default_fs=4,
                  fs_condition=False,
                  device=None,
+                 videocrafter_mode=False,
                  dtype=torch.float16,
                  operations=ops
                 ):
@@ -449,6 +456,7 @@ class UNetModel(nn.Module):
         self.device = device
         #self.dtype = dtype
         self.dtype = torch.float32
+        self.videocrafter_mode = videocrafter_mode
 
         ## Time embedding blocks
         self.time_embed = nn.Sequential(
@@ -699,11 +707,20 @@ class UNetModel(nn.Module):
             cond_idx=None,
             **kwargs
         ):
+        fs_t = transformer_options.get("fs_t", None)
+        if fs_t is not None:
+            fs = fs_t
+
+        null_conditions = [fs is None]
         
-        if any([fs is None, img_emb is None, cc_concat is None]):
+        if not self.videocrafter_mode:
+            null_conditions += [img_emb is None, cc_concat is None]
+
+        if any(null_conditions):
             raise ValueError("One or more of the required inputs for UNet Forward is None.")
         
         cond_idx = transformer_options.get("cond_idx", None)
+
         transformer_options['original_shape'] = list(x.shape)
         transformer_options['transformer_index'] = 0
         transformer_patches = transformer_options.get("patches", {})
@@ -713,14 +730,15 @@ class UNetModel(nn.Module):
         # We usually denote "f" as frames, but will use "t" (time) to be consistent with DynamiCrafter.
         b,_,t,_,_ = x.shape
         
-        context = context_in
-        cc_concat = cc_concat.to(x.device, x.dtype)
-        x = torch.cat([x, cc_concat], dim=1)
-
+        context = context_in if not self.videocrafter_mode else context
         fs = fs.to(x.device, x.dtype)
 
         timestep = timesteps
-        context = context_processor(context, num_video_frames, img_emb=img_emb)
+
+        if not self.videocrafter_mode:
+            cc_concat = cc_concat.to(x.device, x.dtype)
+            x = torch.cat([x, cc_concat], dim=1)
+            context = context_processor(context, num_video_frames, img_emb=img_emb)
 
         t_emb = timestep_embedding(timestep, self.model_channels, repeat_only=False, dtype=self.dtype)
         emb = self.time_embed(t_emb)
@@ -738,7 +756,6 @@ class UNetModel(nn.Module):
 
             fs_embed = self.fps_embedding(fs_emb)
             fs_embed = fs_embed.repeat_interleave(repeats=t, dim=0)
-
             emb = emb + fs_embed
 
         h = x.type(self.dtype)
