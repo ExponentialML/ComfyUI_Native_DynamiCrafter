@@ -1,0 +1,14 @@
+[project]
+name = "comfyui_native_dynamicrafter"
+description = "DynamiCrafter that works natively with ComfyUI's nodes, optimizations, ControlNet, and more."
+version = "1.0.0"
+license = "LICENSE"
+
+[project.urls]
+Repository = "https://github.com/ExponentialML/ComfyUI_Native_DynamiCrafter"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI_Native_DynamiCrafter"
+Icon = ""
