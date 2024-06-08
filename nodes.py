@@ -16,7 +16,7 @@ from .utils.utils import get_models_directory
 MODEL_DIR= "dynamicrafter_models"
 MODEL_DIR_PATH = os.path.join(folder_paths.models_dir, MODEL_DIR)
 
-class DynamiCrafterProcessor:
+class ApplyDynamiCrafter:
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -292,7 +292,7 @@ class DynamiCrafterProcessor:
         
         return (model, {"samples": torch.zeros_like(c_concat)}, {"samples": encoded_latent},)
 
-class DynamiCrafterLoader:
+class LoadDynamiCrafter:
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -375,11 +375,11 @@ class DynamiCrafterLoader:
         return (model_patcher, image_proj_model, )
 
 NODE_CLASS_MAPPINGS = {
-    "DynamiCrafterLoader": DynamiCrafterLoader,
-    "DynamiCrafterProcessor": DynamiCrafterProcessor,
+    "LoadDynamiCrafter": LoadDynamiCrafter,
+    "ApplyDynamiCrafter": ApplyDynamiCrafter,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "DynamiCrafterLoader": "Load a DynamiCrafter Checkpoint",    
-    "DynamiCrafterProcessor": "Apply DynamiCrafter",
+    "LoadDynamiCrafter": "Load DynamiCrafter",
+    "ApplyDynamiCrafter": "Apply DynamiCrafter",
 }
